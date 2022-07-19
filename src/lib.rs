@@ -47,11 +47,12 @@
 pub mod report;
 use report::{Method, Report};
 
+use native_dialog::{MessageDialog, MessageType};
 use std::borrow::Cow;
-use std::io::{Result as IoResult, Write};
+use std::fmt::Write as _;
+use std::io::Result as IoResult;
 use std::panic::PanicInfo;
-use std::path::{Path, PathBuf};
-use termcolor::{BufferWriter, Color, ColorChoice, ColorSpec, WriteColor};
+use std::path::{Path, PathBuf}; // import without risk of name clashing
 
 /// A convenient metadata struct that describes a crate
 pub struct Metadata {
@@ -140,46 +141,48 @@ pub fn print_msg<P: AsRef<Path>>(
   let (_version, name, authors, homepage) =
     (&meta.version, &meta.name, &meta.authors, &meta.homepage);
 
-  let stderr = BufferWriter::stderr(ColorChoice::Auto);
-  let mut buffer = stderr.buffer();
-  buffer.set_color(ColorSpec::new().set_fg(Some(Color::Red)))?;
-
-  writeln!(&mut buffer, "Well, this is embarrassing.\n")?;
-  writeln!(
-    &mut buffer,
+  let mut error_message = "Well, this is embarrassing.\n".to_string();
+  let _ = writeln!(
+    error_message,
     "{} had a problem and crashed. To help us diagnose the \
-     problem you can send us a crash report.\n",
-    name
-  )?;
-  writeln!(
-    &mut buffer,
-    "We have generated a report file at \"{}\". Submit an \
-     issue or email with the subject of \"{} Crash Report\" and include the \
-     report as an attachment.\n",
+     problem you can send us a crash report.",
+    name,
+  );
+  let _ = writeln!(
+    error_message,
+    "We have generated a report file at: \n
+    {} \n
+    Submit an \
+    issue or email with the subject of \"{} Crash Report\" and include the \
+    report as an attachment.",
     match file_path {
       Some(fp) => format!("{}", fp.as_ref().display()),
       None => "<Failed to store file to disk>".to_string(),
     },
     name
-  )?;
+  );
 
   if !homepage.is_empty() {
-    writeln!(&mut buffer, "- Homepage: {}", homepage)?;
+    let _ = writeln!(error_message, "- Homepage: {}", homepage);
   }
   if !authors.is_empty() {
-    writeln!(&mut buffer, "- Authors: {}", authors)?;
+    let _ = writeln!(error_message, "- Authors: {}", authors);
   }
-  writeln!(
-    &mut buffer,
+  let _ = writeln!(
+    error_message,
     "\nWe take privacy seriously, and do not perform any \
      automated error collection. In order to improve the software, we rely on \
-     people to submit reports.\n"
-  )?;
-  writeln!(&mut buffer, "Thank you kindly!")?;
+     people to submit reports.",
+  );
+  let _ = writeln!(error_message, "Thank you kindly!");
 
-  buffer.reset()?;
+  MessageDialog::new()
+    .set_type(MessageType::Info)
+    .set_title("An error happened")
+    .set_text(&error_message)
+    .set_type(MessageType::Warning)
+    .show_alert();
 
-  stderr.print(&buffer).unwrap();
   Ok(())
 }
 
@@ -206,12 +209,14 @@ pub fn handle_dump(meta: &Metadata, panic_info: &PanicInfo) -> Option<PathBuf> {
   };
 
   match panic_info.location() {
-    Some(location) => expl.push_str(&format!(
-      "Panic occurred in file '{}' at line {}\n",
+    Some(location) => writeln!(
+      expl,
+      "Panic occurred in file '{}' at line {}",
       location.file(),
       location.line()
-    )),
-    None => expl.push_str("Panic location unknown.\n"),
+    )
+    .ok()?,
+    None => writeln!(expl, "Panic location unknown.\n").ok()?,
   }
 
   let report =
