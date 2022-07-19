@@ -87,7 +87,7 @@ pub struct Metadata {
 /// ```
 #[macro_export]
 macro_rules! setup_panic {
-  ($meta:expr,$issue_manager:expr) => {
+  ($meta:expr) => {
     #[allow(unused_imports)]
     use std::panic::{self, PanicInfo};
     #[allow(unused_imports)]
@@ -98,7 +98,7 @@ macro_rules! setup_panic {
       Err(_) => {
         panic::set_hook(Box::new(move |info: &PanicInfo| {
           let file_path = handle_dump(&$meta, info);
-          print_msg(file_path, &$meta, &$issue_manager)
+          print_msg(file_path, &$meta)
             .expect("human-panic: printing error message to console failed");
         }));
       }
@@ -124,7 +124,7 @@ macro_rules! setup_panic {
 
         panic::set_hook(Box::new(move |info: &PanicInfo| {
           let file_path = handle_dump(&meta, info);
-          print_msg(file_path, &meta, &$issue_manager)
+          print_msg(file_path, &meta)
             .expect("human-panic: printing error message to console failed");
         }));
       }
@@ -137,7 +137,6 @@ macro_rules! setup_panic {
 pub fn print_msg<P: AsRef<Path>>(
   file_path: Option<P>,
   meta: &Metadata,
-  issue_manager: &String,
 ) -> IoResult<()> {
   let (_version, name, authors, homepage) =
     (&meta.version, &meta.name, &meta.authors, &meta.homepage);
@@ -149,13 +148,13 @@ pub fn print_msg<P: AsRef<Path>>(
     "We have generated a report file at: \n
     {} \n
     Submit an \
-    issue or email to {} and include the \
+    issue or email and include the \
     report as an attachment.",
-    issue_manager,
     match file_path {
       Some(fp) => format!("{}", fp.as_ref().display()),
       None => "<Failed to store file to disk>".to_string(),
     },
+    name
   );
 
   if !homepage.is_empty() {
