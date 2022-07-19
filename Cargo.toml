@@ -25,6 +25,7 @@ toml = "0.5.9"
 serde = "1.0.139"
 os_info = "3.4.0"
 backtrace = "0.3.66"
+native-dialog = "0.6.3"
 
 [features]
 nightly = []
